@@ -1,3 +1,14 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+
+# GCP key
+*.json
+*.key
+*.pem
+secret.tfvars
+secret/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
