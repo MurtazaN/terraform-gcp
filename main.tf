@@ -1,15 +1,20 @@
+# Author: Murtaza
+
+# 1. THE CONNECTION (Provider GCP)
 provider "google" {
-  project = "github-actions-485720" # Replace with your project ID
-  region  = "us-west1"
-  zone    = "us-west1-b"
+  project = "github-actions-485720"
+  region  = "us-west1" # Using Oregon - it has high capacity
 }
 
-# Enable Compute Engine API - added to fix API error
-resource "google_project_service" "compute" {
-  project = "github-actions-485720"
-  service = "compute.googleapis.com"
-
-  # This ensures the API is enabled before the VM tries to create
+# 2. Enable APIs
+resource "google_project_service" "gcp_services" {
+  for_each = toset([
+    "compute.googleapis.com",
+    "sqladmin.googleapis.com",
+    "secretmanager.googleapis.com",
+    "artifactregistry.googleapis.com"
+  ])
+  service            = each.key # ??
   disable_on_destroy = false
 }
 
@@ -47,43 +52,45 @@ resource "google_storage_bucket" "mlops-test-bucket" {
 }
 
 # -----------------------------------------------------------------------------
-# Enable the SQL Admin API (essential for Cloud SQL)
-resource "google_project_service" "sqladmin" {
-  service            = "sqladmin.googleapis.com"
-  disable_on_destroy = false
+
+
+# 3. THE VAULT (Secret Manager)
+resource "google_secret_manager_secret" "db_pwd" {
+  secret_id  = "postgres-password"
+  depends_on = [google_project_service.gcp_services]
+  replication {
+    auto {}
+  }
 }
 
-# Create the Cloud SQL Instance
-resource "google_sql_database_instance" "postgres_instance" {
-  name             = "mlops-db-instance"
-  database_version = "POSTGRES_15"
-  region           = "us-west1" # Using a stable region to avoid stockouts
+resource "google_secret_manager_secret_version" "db_pwd_val" {
+  secret      = google_secret_manager_secret.db_pwd.id
+  secret_data = "murtaza_secure_123" # The actual password
+}
 
-  depends_on = [google_project_service.sqladmin]
+# 4. THE DATABASE (Cloud SQL)
+resource "google_sql_database_instance" "postgres" {
+  name                = "mlops-db"
+  database_version    = "POSTGRES_15"
+  region              = "us-west1"
+  deletion_protection = false
+  depends_on          = [google_project_service.gcp_services]
 
   settings {
-    # 'db-f1-micro' is the cheapest for DB instance
-    tier = "db-f1-micro"
-
-    ip_configuration {
-      ipv4_enabled = true
-      # Note: For SavVio, probably use private IP
-    }
+    tier = "db-f1-micro" # Cheapest version for labs
   }
-
-  # This prevents accidental deletion of the instance
-  deletion_protection = false
 }
 
-# Create the actual Database inside the Instance
-resource "google_sql_database" "mydatabase" {
-  name     = "mlops_test_db"
-  instance = google_sql_database_instance.postgres_instance.name
-}
-
-# Create a Database User
-resource "google_sql_user" "users" {
+resource "google_sql_user" "admin" {
   name     = "dbadmin"
-  instance = google_sql_database_instance.postgres_instance.name
-  password = "your-secure-password" # Best practice: use a variable for this
+  instance = google_sql_database_instance.postgres.name
+  password = google_secret_manager_secret_version.db_pwd_val.secret_data
+}
+
+# 5. THE WAREHOUSE (Artifact Registry)
+resource "google_artifact_registry_repository" "repo" {
+  location      = "us-west1"
+  repository_id = "my-docker-repo"
+  format        = "DOCKER"
+  depends_on    = [google_project_service.gcp_services]
 }
