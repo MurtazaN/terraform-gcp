@@ -17,6 +17,8 @@ provider "google" {
   region  = "us-west1" # Using Oregon - it has high capacity
 }
 
+data "google_project" "project" {}
+
 # Enable APIs
 resource "google_project_service" "gcp_services" {
   for_each = toset([
@@ -111,10 +113,14 @@ resource "google_sql_database" "mlops_db" {
 
 # 5. THE RUNNER (Cloud Run)
 resource "google_cloud_run_v2_service" "mlops_app" {
-  name     = "mlops-app"
-  location = "us-west1"
+  name                = "mlops-app"
+  location            = "us-west1"
+  deletion_protection = false
 
-  depends_on = [google_project_service.gcp_services]
+  depends_on = [
+    google_project_service.gcp_services,
+    google_secret_manager_secret_iam_member.cloudrun_secret_access
+  ]
 
   template {
     # Connect to Cloud SQL
@@ -128,7 +134,7 @@ resource "google_cloud_run_v2_service" "mlops_app" {
     containers {
       # TODO: Replace with your Artifact Registry image once built
       # Format: us-west1-docker.pkg.dev/github-actions-485720/mlops-test-docker-repo/YOUR_IMAGE:TAG
-      image = "us-west1-docker.pkg.dev/github-actions-485720/mlops-test-docker-repo/test-app:v1"
+      image = "us-west1-docker.pkg.dev/github-actions-485720/mlops-test-docker-repo/test-app2:v1"
 
       ports {
         container_port = 8080
@@ -179,7 +185,7 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
 resource "google_secret_manager_secret_iam_member" "cloudrun_secret_access" {
   secret_id = google_secret_manager_secret.db_pwd.secret_id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_cloud_run_v2_service.mlops_app.template[0].service_account}" # Uses default compute SA
+  member    = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com" # Uses default compute SA
 }
 
 # 6. THE WAREHOUSE (Artifact Registry)
