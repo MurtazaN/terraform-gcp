@@ -1,12 +1,12 @@
-# Author: Murtaza
+# Author: Murtaza N
 
-# 1. THE CONNECTION (Provider GCP)
+# THE CONNECTION (Provider GCP)
 provider "google" {
   project = "github-actions-485720"
   region  = "us-west1" # Using Oregon - it has high capacity
 }
 
-# 2. Enable APIs
+# Enable APIs
 resource "google_project_service" "gcp_services" {
   for_each = toset([
     "compute.googleapis.com",
@@ -21,7 +21,7 @@ resource "google_project_service" "gcp_services" {
 resource "google_compute_instance" "mlops-test-vm" {
   # Ensure this runs only after the API is enabled - added to fix API error
   # ensures the order of operations
-  depends_on = [google_project_service.compute]
+  depends_on = [google_project_service.gcp_services]
 
   name         = "mlops-test-vm"
   machine_type = "e2-micro"
@@ -54,9 +54,9 @@ resource "google_storage_bucket" "mlops-test-bucket" {
 # -----------------------------------------------------------------------------
 
 
-# 3. THE VAULT (Secret Manager)
+# THE VAULT (Secret Manager)
 resource "google_secret_manager_secret" "db_pwd" {
-  secret_id  = "postgres-password"
+  secret_id  = "test-db-password"
   depends_on = [google_project_service.gcp_services]
   replication {
     auto {}
@@ -65,13 +65,13 @@ resource "google_secret_manager_secret" "db_pwd" {
 
 resource "google_secret_manager_secret_version" "db_pwd_val" {
   secret      = google_secret_manager_secret.db_pwd.id
-  secret_data = "murtaza_secure_123" # The actual password
+  secret_data = "test_password_123" # The actual password
 }
 
 # 4. THE DATABASE (Cloud SQL)
 resource "google_sql_database_instance" "postgres" {
-  name                = "mlops-db"
-  database_version    = "POSTGRES_15"
+  name                = "mlops-test-db"
+  database_version    = "POSTGRES_18"
   region              = "us-west1"
   deletion_protection = false
   depends_on          = [google_project_service.gcp_services]
@@ -82,7 +82,7 @@ resource "google_sql_database_instance" "postgres" {
 }
 
 resource "google_sql_user" "admin" {
-  name     = "dbadmin"
+  name     = "test-db-admin"
   instance = google_sql_database_instance.postgres.name
   password = google_secret_manager_secret_version.db_pwd_val.secret_data
 }
@@ -90,7 +90,7 @@ resource "google_sql_user" "admin" {
 # 5. THE WAREHOUSE (Artifact Registry)
 resource "google_artifact_registry_repository" "repo" {
   location      = "us-west1"
-  repository_id = "my-docker-repo"
+  repository_id = "mlops-test-docker-repo"
   format        = "DOCKER"
   depends_on    = [google_project_service.gcp_services]
 }
