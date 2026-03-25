@@ -1,6 +1,8 @@
 # Terraform
 .terraform/
 .terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
 
 # GCP key
 *.json
