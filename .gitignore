@@ -2,6 +2,7 @@
 .terraform/
 .terraform.lock.hcl
 *.tfstate
+*.tfstate.*
 *.tfstate.backup
 
 # GCP key
