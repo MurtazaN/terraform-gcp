@@ -71,7 +71,7 @@ resource "google_secret_manager_secret_version" "db_pwd_val" {
 # 4. THE DATABASE (Cloud SQL)
 resource "google_sql_database_instance" "postgres" {
   name                = "mlops-test-db"
-  database_version    = "POSTGRES_18"
+  database_version    = "POSTGRES_15"
   region              = "us-west1"
   deletion_protection = false
   depends_on          = [google_project_service.gcp_services]
