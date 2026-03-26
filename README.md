@@ -71,7 +71,17 @@ terraform plan
 terraform apply
 ```
 
-### 5. Tear Down
+### 5. Access the Webpage
+
+Once deployed, Cloud Run will generate a URL for your service. You can retrieve it using:
+
+```bash
+gcloud run services describe mlops-app --region=us-west1 --format="value(status.url)"
+```
+
+Open this URL in your web browser. As defined in `app.py` and containerized via the `Dockerfile`, a simple Flask application listens on port 8080 and exposes a single route at `/`. When you visit the site, you should see the message: **"Cloud Run is working!"**
+
+### 6. Tear Down
 
 ```bash
 terraform destroy
