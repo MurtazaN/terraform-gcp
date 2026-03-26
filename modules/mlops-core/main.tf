@@ -1,5 +1,8 @@
 # Author: Murtaza N
 
+# Use this data source to fetch project number and other project details dynamically
+data "google_project" "project" {}
+
 locals {
   prefix = "${var.app_name}-${var.environment}"
 

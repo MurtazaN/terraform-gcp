@@ -10,9 +10,8 @@ terraform {
 }
 
 provider "google" {
-  project = var.project_id
-  region  = var.region
+  project = "github-actions-485720"
+  region  = "us-west1"
 }
 
-# Use this data source to fetch project number and other project details dynamically
-data "google_project" "project" {}
+
